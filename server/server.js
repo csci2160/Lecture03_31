@@ -234,7 +234,7 @@ server.put(
           var message = 
             { 
             action: 'newmodel',
-            threedmodel: request.params.model
+            name: request.params.model
             };
               
           for(var i in wss.clients)
@@ -276,7 +276,7 @@ server.del(
               var message = 
                 { 
                 action: 'deletemodel',
-                threedmodel: request.params.model
+                name: request.params.model
                 };
                 
               for(var i in wss.clients)
