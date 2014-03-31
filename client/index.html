@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html ng-app>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    
+    <title>AngularJS+WebSockets</title>
+    
+    <style>
+      /* Just content and behaviour for this demo. */
+    </style>
+
+    <!-- Why punish myself? -->    
+    <script src="js_lib/jquery.min.js"></script>
+
+    <!-- This is an AngularJS demo. -->
+    <script src="js_lib/angular.min.js"></script>
+    
+    <script>
+      // Create a variable at the top-level scope so everyone can see it.
+      var ws = null;
+      
+      // Once the document is ready, setup the interface and bind functions to 
+      // DOM elements.
+      $(document).ready(
+        function ()
+          {
+          // Disable disconnect at start.
+          $('#disconnect').prop('disabled', true);
+          
+          // Disable message interface at start.
+          $('#message').prop('disabled', true);
+          $('#send').prop('disabled', true);
+          
+          // Bind function to establish connection to connect button.
+          $('#connect').click(
+            function ()
+              {
+              // Connect the global variable to the server.
+              ws = new WebSocket("ws://192.168.0.159:8080");
+      
+              // I am connected.
+              ws.onopen = 
+                function()
+                  {
+                  // Disallow repeated connect requests.
+                  $('#connect').prop('disabled', true);
+                  
+                  // Allow disconnect.
+                  $('#disconnect').prop('disabled', false);
+                  
+                  // Enable message interface.
+                  $('#message').prop('disabled', false);
+                  $('#send').prop('disabled', false);
+                  
+                  // Set focus to the message field.
+                  $('#message').focus();
+                  };
+      
+              // Handle a message from the server.
+              ws.onmessage = 
+                function(event) 
+                  { 
+                  // WebSockets does text and binary, not structured data.
+                  // Manually parse the JSON.
+                  var message = JSON.parse(event.data);
+                  
+                  // Log the message and manually refresh AngularJS.
+                  angular.element($('#controller')).scope().log(message).$apply();
+                  
+                  // The server message has been completely handled. I can now
+                  // reset the client interface.
+                  
+                  // Reenable message interface.
+                  $('#message').prop('disabled', false);
+                  $('#send').prop('disabled', false);
+
+                  // Set focus to the message field.
+                  $('#message').focus();
+                  };
+      
+              // Let the user know the connection closed.
+              ws.onclose = 
+                function()
+                  { 
+                  // Reenable connections.
+                  $('#connect').prop('disabled', false);
+
+                  // Disallow repeated disconnect requests.
+                  $('#disconnect').prop('disabled', true);
+
+                  // Disable message interface.
+                  $('#message').prop('disabled', true);
+                  $('#send').prop('disabled', true);
+                  
+                  // Clear things out.
+                  angular.element($('#controller')).scope().clear().$apply();
+                  };
+              });
+          
+          // Bind function to disconnect to the disconnect button.
+          $('#disconnect').click(
+            function ()
+              {
+              // Manually disconnect from websockets, even though I don't need to.
+              ws.close();
+              });
+          });
+    </script>
+    
+    <script>
+      // Send a message using AngularJS.
+      function Message($scope) 
+        {
+        // Create a model for a history of messages.
+        $scope.history = [];
+        
+        // Send a message.
+        $scope.sendMessage = 
+          function() 
+            {
+            // Disable message interface until I get a response from the server.
+            $('#message').prop('disabled', true);
+            $('#send').prop('disabled', true);
+
+            // Now that the interface is disabled, send the data.
+            ws.send($scope.messageText);
+            $scope.messageText = '';
+            };
+            
+        // Log a message.
+        $scope.log =
+          function ($message)
+            {
+            // Add the message to the model.
+            $scope.history.push($message);
+            
+            // Return the scope in case the caller wants to manually update.
+            return $scope;
+            };
+            
+        // Clear the model.
+        $scope.clear =
+          function ()
+            {
+            $scope.history = [];
+            
+            // Return the scope in case the caller wants to manually update.
+            return $scope;
+            };
+        }
+    </script>
+  </head>
+  
+  <body>
+    <h1>Message Client</h1>
+    
+    <!-- Create a message controller. -->
+    <div id="controller" ng-controller="Message">
+    
+      <form ng-submit="sendMessage()">
+        
+        <!-- Not really necessary except to better demonstrate events. -->
+        <input id="connect" type="button" value="Connect">
+        <input id="disconnect" type="button" value="Disconnect">        
+        
+        <hr>
+        
+        <!-- Bind the message field to the messageText model field. -->
+        <input 
+          id="message"
+          type="text" 
+          ng-model="messageText"  
+          size="30"
+          placeholder="Type your message here">
+          
+        <!-- No CGI required here. -->
+        <input id="send" type="submit" value="Send">
+        
+      </form>
+      
+      <!-- Log message history. Format the Javascript date object with a filter. -->
+      <ul>
+        <li ng-repeat="message in history">
+          {{message.date | date: 'medium'}} {{message.text}}
+        </li>
+      </ul>
+      
+    </div>
+    
+  </body>
+  
+</html>
