@@ -217,32 +217,53 @@ server.put(
   '/models/:model',
   function (request, response, next)
     {
-    fs.rename(
-      request.files.file.path,
-      buildModelPath(request.params.model),
-      function (err) 
-        {
-        if(!err) 
+    // Hack this to allow either form uploads.
+    if(request.files)
+      fs.rename(
+        request.files.file.path,
+        buildModelPath(request.params.model),
+        function (err) 
           {
-          // Load the model from disk.
-          loadModel(request.params.model);
+          if(!err) 
+            {
+            // Load the model from disk.
+            loadModel(request.params.model);
     
-          // Return created.
-          response.send(201);
+            // Return created.
+            response.send(201);
     
-          // Push the new model to everyone.
-          var message = 
-            { 
-            action: 'newmodel',
-            name: request.params.model
-            };
+            // Push the new model to everyone.
+            var message = 
+              { 
+              action: 'newmodel',
+              name: request.params.model
+              };
               
-          for(var i in wss.clients)
-            wss.clients[i].send(JSON.stringify(message));      
-          }
-        else
-          response.send(500);
-        });
+            for(var i in wss.clients)
+              wss.clients[i].send(JSON.stringify(message));      
+            }
+          else
+            response.send(500);
+          });
+          
+      // Or low-level CURL uploads.
+      else
+        fs.writeFile(
+          buildModelPath(request.params.model), 
+          request.body, 
+          function (err) 
+            {
+            if(!err)
+              {
+              // Load the model from disk.
+              loadModel(request.params.model);
+    
+              // Return created.
+              response.send(201);
+              }
+            else
+              response.send(500);
+            });
     
     return next();
     });
